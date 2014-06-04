@@ -45,7 +45,7 @@ class DUT(Base):
 
     SLOTNUM = Column(Integer)
     ARCHIEVED = Column(Integer)   # 0 for running and 1 for archieved.
-    STATUS = Column(Integer)
+    STATUS = Column(Integer, nullable=True)
     MESSAGE = Column(String(20))
     TESTDATE = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -57,7 +57,7 @@ class Cycle(Base):
     __tablename__ = "cycle"
 
     ID = Column(Integer, primary_key=True)
-    CYCLENUM = Column(Integer)
+    CYCLENUM = Column(Integer, nullable=True)
     READINESS = Column(Integer)
     PGEMSTAT = Column(Integer)
     TEMP = Column(Integer)
@@ -96,6 +96,7 @@ if __name__ == "__main__":
             setattr(dut, k, v)
 
         cycle = Cycle()
+        cycle.CYCLENUM = dut.PWRCYCS + 1
         c = {"VIN": 47, "VCAP": 43, "TEMP": 20}
         for k, v in c.items():
             setattr(cycle, k, v)

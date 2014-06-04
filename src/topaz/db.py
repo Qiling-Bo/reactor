@@ -19,9 +19,6 @@ class DB(object):
         sm.create_table()
         self.session = sm.get_session()
 
-    def setup(self):
-        pass
-
     def fetch(self, num):
         """read document of slotnum """
         d = self.session.query(DUT) \
@@ -53,6 +50,7 @@ class DB(object):
         """add cycle to dut"""
         dut = self.fetch(num)
         cycle = Cycle()
+        cycle.CYCLENUM = dut.PWRCYCS + 1
         for k, v in c.items():
             setattr(cycle, k, v)
         dut.cycles.append(cycle)
