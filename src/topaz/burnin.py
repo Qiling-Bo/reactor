@@ -1,65 +1,41 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import time
-from topaz.pyaardvark import Adapter
-from topaz.channel import channel_open, ChannelStates
 from topaz import fsm
 from topaz.config import DEVICE_LIST
-import logging
-
-i2c_adapter = Adapter()
-i2c_adapter.open(serialnumber=DEVICE_LIST[0])
-i2c_adapter2 = Adapter()
-i2c_adapter2.open(serialnumber=DEVICE_LIST[1])
+from topaz.chamber import Chamber, ChamberStates
+from topaz.pwr import PowerSupply
 
 
 def main():
-    channel_list = []
-    for channel_id in range(0, 8):
-        my_channel = channel_open(ch_id=channel_id, device=i2c_adapter)
-        f = fsm.StateMachine(my_channel)
-        f.run()
-        channel_list.append(f)
+    ps = PowerSupply()
+    setting = {"volt": 12.0, "curr": 15.0, "ovp": 13.0, "ocp": 20.0}
+    try:
+        ps.selectChannel(node=5, ch=1)
+        ps.set(setting)
+        ps.activateOutput()
+        ps.selectChannel(node=6, ch=1)
+        ps.set(setting)
+        ps.activateOutput()
+    except Exception:
+        ps.deactivateOutput()
+        ps.reset()
+        raise Exception
 
-    for channel_id in range(8, 16):
-        my_channel = channel_open(ch_id=channel_id, device=i2c_adapter2)
-        f = fsm.StateMachine(my_channel)
-        f.run()
-        channel_list.append(f)
+    chamber1 = Chamber(DEVICE_LIST[0], chamber_id=0)
+    chamber2 = Chamber(DEVICE_LIST[1], chamber_id=1)
 
-    wait_for_discharge = 0
+    f1 = fsm.StateMachine(chamber1)
+    f1.run()
+    f2 = fsm.StateMachine(chamber2)
+    f2.run()
 
-    burnin_finish = False
-    logging.info("====================burnin start=========================")
-    while(not burnin_finish):
-        burnin_finish = True
-        for f in channel_list:
-            if(f.status.value == ChannelStates.EXIT):
-                # check if already finished.
-                burnin_finish &= True
-                logging.info("----------channel finish.------------------")
-                wait_for_discharge += 30
-                continue
-            else:
-                burnin_finish &= False
-                logging.info("----------channel not finish.------------------")
-            logging.info("----------channel start------------------")
-            # start one cycle
-            f.en_queue(ChannelStates.run)
-            time.sleep(1)
+    f1.en_queue(ChamberStates.INIT)
+    f1.en_queue(ChamberStates.WORK)
+    f1.en_queue(ChamberStates.EXIT)
 
-            # wait for this cycle to finish
-            while((f.status.value != ChannelStates.IDLE) and
-                  (f.status.value != ChannelStates.EXIT)):
-                # check if the channle has finished burnin
-                time.sleep(5)
-            logging.info("--------------channel done.----------------------")
-        if(not burnin_finish):
-            # used to prevent only one channel left and
-            # get not enough time to dischage
-            time.sleep(wait_for_discharge)
-        wait_for_discharge = 0
-    logging.info("====================burnin done.=========================")
+    f2.en_queue(ChamberStates.INIT)
+    f2.en_queue(ChamberStates.WORK)
+    f2.en_queue(ChamberStates.EXIT)
 
 
 if __name__ == "__main__":

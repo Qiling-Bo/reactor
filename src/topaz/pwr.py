@@ -96,14 +96,24 @@ class PowerSupply(object):
 if __name__ == "__main__":
 
     ps = PowerSupply()
+    print "###ADDR 5###"
     ps.selectChannel(node=5, ch=1)
-    setting = {"volt": 12.0, "ovp": 13.0, "ocp": 10.0}
+    setting = {"volt": 12.0, "curr": 5, "ovp": 13.0, "ocp": 10.0}
     ps.set(setting)
     ps.activateOutput()
-    time.sleep(5)
+    time.sleep(2)
     print ps.measureVolt()
     print ps.measureCurr()
-    time.sleep(5)
-    #ps.deactivateOutput()
+    time.sleep(2)
+    ps.deactivateOutput()
+
+    print "###ADDR 6###"
+    ps.selectChannel(node=6, ch=1)
+    setting = {"volt": 12.0, "curr": 5, "ovp": 13.0, "ocp": 10.0}
+    ps.set(setting)
+    ps.activateOutput()
+    time.sleep(2)
     print ps.measureVolt()
     print ps.measureCurr()
+    time.sleep(2)
+    ps.deactivateOutput()
