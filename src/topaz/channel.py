@@ -11,6 +11,8 @@ from topaz.db import DB
 from topaz.config import CHARGE, DISCHARGE, SLOTNUM
 from topaz.config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
 from topaz.gauge import gauge
+from topaz.pwr import PowerSupply
+
 import logging
 import time
 import sys
@@ -126,7 +128,7 @@ class Channel(fsm.IFunc):
             # Start Running
             self.queue.put(ChannelStates.precheck)
         else:
-            logging.debug("unknow dut state, exit...")
+            logging.debug("unknown dut state, exit...")
             self.queue.put(ChannelStates.EXIT)
 
     def error(self):
@@ -175,7 +177,7 @@ class Channel(fsm.IFunc):
                              dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
                              + str(re_position(self.chamber, self.ch_id, i)))
             else:
-                logging.debug(str(dut_id) + " is not ready.")
+                logging.error(str(dut_id) + " is not found.")
                 dut["STATUS"] = DUTStatus.BLANK
                 self.result[i] = Cycle.BLANK
             self.db.update(dut)
@@ -234,11 +236,13 @@ class Channel(fsm.IFunc):
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
 
-                display = "[" + str(curr_cycle) + "] " + \
+                display = "[" + str(curr_cycle) + "] " + "DUT: " + \
                           str(re_position(self.chamber, self.ch_id, i)) + \
-                          " VCAP: " + str(vcap) + " TEMP: " + str(temp)
+                          " VCAP: " + str(vcap) + \
+                          " VIN: " + str(result["VIN"]) + \
+                          " TEMP: " + str(temp)
                 logging.info(display)
-            logging.info(" ")    # seperator for diaplay
+            logging.info(" ")    # separator for display
             deswitch(self.device, self.ch_id)
             time.sleep(DELAY.READCYCLE)
 
@@ -293,11 +297,13 @@ class Channel(fsm.IFunc):
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
 
-                display = "[" + str(curr_cycle) + "] " + \
+                display = "[" + str(curr_cycle) + "] " + "DUT: " + \
                           str(re_position(self.chamber, self.ch_id, i)) + \
-                          " VCAP: " + str(vcap) + " TEMP: " + str(temp)
+                          " VCAP: " + str(vcap) + \
+                          " VIN: " + str(result["VIN"]) + \
+                          " TEMP: " + str(temp)
                 logging.info(display)
-            logging.info(" ")    # seperator for diaplay
+            logging.info(" ")    # separator for display
             deswitch(self.device, self.ch_id)
             time.sleep(DELAY.READCYCLE)
 
@@ -320,19 +326,34 @@ class Channel(fsm.IFunc):
             if(self.result[i] == Cycle.CHARGING):
                 # dut failed
                 dut["STATUS"] = DUTStatus.FAILED
-                dut["MESSAGE"] = "ERROR OCCURED IN CHARGING."
+                dut["MESSAGE"] = "ERROR OCCURRED IN CHARGING."
             elif(self.result[i] == Cycle.DISCHARGING):
                 # dut failed
                 dut["STATUS"] = DUTStatus.FAILED
-                dut["MESSAGE"] = "ERROR OCCURED IN DISCHARGING."
+                dut["MESSAGE"] = "ERROR OCCURRED IN DISCHARGING."
             else:
                 dut["STATUS"] = DUTStatus.IDLE
             self.db.update(dut)
 
 
-if __name__ == "__main__":
+def main():
+    # one cycle for charge and discharge, to debug the channel board.
+
+    # set power supply
+    ps = PowerSupply()
+    setting = {"volt": 12.5, "curr": 20.0, "ovp": 13.9, "ocp": 30.0}
+    try:
+        ps.selectChannel(node=6, ch=1)
+        ps.set(setting)
+        ps.activateOutput()
+    except Exception:
+        ps.deactivateOutput()
+        ps.reset()
+        raise Exception
+
+    # set I2C adapter
     i2c_adapter = Adapter()
-    i2c_adapter.open(serialnumber=DEVICE_LIST[1])
+    i2c_adapter.open(portnum=0)  # assume only one adapter is connected
 
     import argparse
     parser = argparse.ArgumentParser(description="channel.py")
@@ -343,18 +364,22 @@ if __name__ == "__main__":
     f = fsm.StateMachine(my_channel)
     f.run()
 
-    finish = False
-    while(not finish):
-        # start one cycle
-        f.en_queue(ChannelStates.run)
-        time.sleep(1)   # wait for the process to run, refresh the status.
-        # wait for this cycle to finish
-        while((f.status.value != ChannelStates.IDLE) and
-              (f.status.value != ChannelStates.EXIT)):
-            # check if the channle has finished burnin
-            time.sleep(5)
-        if(f.status.value == ChannelStates.EXIT):
-            finish = True
-        else:
-            # wait the PGEM PowerCycle number change, stupid.
-            time.sleep(5)
+    # start one cycle
+    f.en_queue(ChannelStates.run)
+    time.sleep(1)   # wait for the process to run, refresh the status.
+    # wait for this cycle to finish
+    while((f.status.value != ChannelStates.IDLE) and
+            (f.status.value != ChannelStates.EXIT)):
+        # check if the channel has finished burnin
+        time.sleep(5)
+    if(f.status.value == ChannelStates.EXIT):
+        logging.info("Finish.")
+    else:
+        logging.info("One cycle finish.")
+    f.quit()
+
+    ps.deactivateOutput()
+
+
+if __name__ == "__main__":
+    main()

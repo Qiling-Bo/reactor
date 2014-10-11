@@ -1,5 +1,6 @@
 *.py[cod]
 *.log
+*.db
 
 # Packages
 *.egg

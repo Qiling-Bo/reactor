@@ -43,7 +43,7 @@ class StateMachine(object):
         self.mf = ifunc
         self.q = ifunc.queue
         self.status = Value('d', 0)
-        self.exit = False
+        self.is_alive = True
 
     def en_queue(self, state):
         self.q.put(state)
@@ -52,11 +52,12 @@ class StateMachine(object):
         p = Process(target=self.loop, args=(self.status, ))
         p.start()
 
-    def exit(self):
+    def quit(self):
         self.q.put(States.EXIT)
+        self.is_alive = False
 
     def loop(self, s):
-        while(not self.exit):
+        while(self.is_alive):
             s.value = self.q.get()
             if(s.value == States.INIT):
                 self.mf.init()
@@ -66,6 +67,6 @@ class StateMachine(object):
                 self.mf.error()
             elif(s.value == States.EXIT):
                 self.mf.exit()
-                self.exit = True
+                self.is_alive = False
             else:
                 self.mf.work(s.value)

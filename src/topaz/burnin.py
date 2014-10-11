@@ -8,14 +8,14 @@ from topaz.pwr import PowerSupply
 
 def main():
     ps = PowerSupply()
-    setting = {"volt": 12.0, "curr": 15.0, "ovp": 13.0, "ocp": 20.0}
+    setting = {"volt": 12.0, "curr": 30.0, "ovp": 13.0, "ocp": 40.0}
     try:
         ps.selectChannel(node=5, ch=1)
         ps.set(setting)
         ps.activateOutput()
-        ps.selectChannel(node=6, ch=1)
-        ps.set(setting)
-        ps.activateOutput()
+        #ps.selectChannel(node=6, ch=1)
+        #ps.set(setting)
+        #ps.activateOutput()
     except Exception:
         ps.deactivateOutput()
         ps.reset()

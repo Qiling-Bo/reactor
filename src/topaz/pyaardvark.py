@@ -197,7 +197,7 @@ class Adapter(object):
                 api.py_aa_close(handle)
             if(self.port is None):
                 raise_aa_ex(-601)
-        elif(portnum):
+        elif(portnum is not None):
             self.port = portnum
 
         logging.debug("open: " + str(self.port))

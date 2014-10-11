@@ -8,13 +8,14 @@
 #    func = lambda name, enc=ascii: {True: enc}.get(name == 'mbcs')
 #    codecs.register(func)
 
+import topaz
 from setuptools import setup
 
 #from distutils.core import setup
 
 setup(
     name="topaz_bi",
-    version="0.2",
+    version=topaz.__version__,
     package_dir={'': 'src'},
     packages=["topaz",
               "topaz/fsm"],
